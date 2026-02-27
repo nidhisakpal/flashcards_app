@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+flashcards.db
+uploads/*
+!.gitkeep
+.env
+.venv/

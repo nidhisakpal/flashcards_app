@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FlashForge | Lecture-to-Flashcards</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    <div class="backdrop"></div>
+    <div class="layout">
+      <aside class="panel sidebar">
+        <div class="panel-head">
+          <h1>FlashForge</h1>
+          <p>Upload lectures. Train for exams with trackable mastery.</p>
+        </div>
+
+        <form id="new-project-form" class="stack">
+          <label>
+            Project name
+            <input id="project-name" required maxlength="80" placeholder="e.g. Molecular Biology Final" />
+          </label>
+          <label>
+            Notes (optional)
+            <textarea id="project-description" maxlength="400" placeholder="Syllabus scope, deadlines, goals"></textarea>
+          </label>
+          <button type="submit" class="primary">Create project</button>
+        </form>
+
+        <div class="project-list-wrap">
+          <div class="label-row">
+            <h2>Projects</h2>
+            <button id="refresh-projects" type="button" class="ghost">Refresh</button>
+          </div>
+          <div id="project-list" class="project-list"></div>
+        </div>
+      </aside>
+
+      <main class="main-grid">
+        <section class="panel uploader">
+          <div class="label-row">
+            <h2 id="active-project-title">Pick a project</h2>
+            <span id="generator-label" class="chip"></span>
+          </div>
+
+          <form id="upload-form" class="upload-form">
+            <label class="file-label">
+              Lecture file (PDF or PPTX)
+              <input id="lecture-file" type="file" accept=".pdf,.pptx" required />
+            </label>
+            <label>
+              Target cards
+              <input id="card-count" type="number" min="5" max="80" value="20" />
+            </label>
+            <button type="submit" class="primary">Upload + generate</button>
+          </form>
+
+          <div id="stats" class="stats-row"></div>
+          <div id="source-list" class="source-list"></div>
+        </section>
+
+        <section class="panel study">
+          <div class="label-row">
+            <h2>Study Mode</h2>
+            <div class="filters">
+              <button class="filter active" data-filter="all">All</button>
+              <button class="filter" data-filter="dont_know">Don't know</button>
+              <button class="filter" data-filter="kind_of_know">Kind of know</button>
+              <button class="filter" data-filter="know">Know</button>
+            </div>
+          </div>
+
+          <div id="empty-study" class="empty-message">No cards yet. Upload a lecture to begin.</div>
+
+          <div id="card-shell" class="card-shell hidden">
+            <div id="card-progress" class="mono"></div>
+            <article class="flashcard">
+              <h3>Question</h3>
+              <p id="card-question"></p>
+              <div id="answer-block" class="answer hidden">
+                <h3>Answer</h3>
+                <p id="card-answer"></p>
+              </div>
+            </article>
+
+            <div class="card-actions">
+              <button id="show-answer" class="secondary">Show answer</button>
+              <button id="prev-card" class="ghost">Prev</button>
+              <button id="next-card" class="ghost">Next</button>
+            </div>
+
+            <div class="rating-row">
+              <button data-status="dont_know" class="rating danger">Don't know</button>
+              <button data-status="kind_of_know" class="rating warn">Kind of know</button>
+              <button data-status="know" class="rating good">Know</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel manual-card">
+          <h2>Add your own card</h2>
+          <form id="manual-card-form" class="stack">
+            <label>
+              Question
+              <textarea id="manual-question" required maxlength="600" placeholder="What concept do you want to drill?"></textarea>
+            </label>
+            <label>
+              Answer
+              <textarea id="manual-answer" required maxlength="2000" placeholder="Detailed explanation"></textarea>
+            </label>
+            <button type="submit" class="primary">Save card</button>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <template id="project-item-template">
+      <button class="project-item" type="button">
+        <div class="project-title"></div>
+        <div class="mono project-meta"></div>
+      </button>
+    </template>
+
+    <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+  </body>
+</html>
