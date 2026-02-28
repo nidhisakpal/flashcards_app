@@ -1,70 +1,47 @@
-# FlashForge (Lecture -> Flashcards)
+# Flashcard Maker (Manual Project + Topic Flashcards)
 
-FlashForge is a local web app for exam prep. Upload lecture PDFs/PPTX files, generate detailed flashcards, and study with mastery buckets:
+Flashcard Maker is a local web app for serious study prep. It lets you create unlimited projects, organize them by topics, and manually add flashcards with a **question** and **definition**.
 
-- `Know`
-- `Kind of know`
-- `Don't know`
+No PDF/slide upload or auto-generation is used in this version.
 
-You can manage separate projects (classes/exams) and keep each project's cards isolated.
+## What you can do
 
-## Features
-
-- Project-based organization for multiple courses/exams
-- Upload lecture files (`.pdf`, `.pptx`)
-- Auto-generate flashcards from source material
-- Click-through study mode with reveal/next/prev
-- Mastery tracking with status filters
-- Manual card creation for custom drilling
-- SQLite persistence (data saved locally)
-
-## Generation quality modes
-
-- **OpenAI mode (recommended):** set `OPENAI_API_KEY` for higher-quality, exam-grade cards.
-- **Local fallback:** if no key is set (or API call fails), app still generates cards with a deterministic local generator.
-
-Optional env var:
-
-- `OPENAI_MODEL` (default: `gpt-4.1-mini`)
+- Create as many projects as you want (courses, exam tracks, research areas)
+- Create as many topics inside each project as you want
+- Add manual flashcards with:
+  - Question
+  - Definition
+  - Optional topic assignment
+- Study cards in click-through mode
+- Mark mastery per card:
+  - `Know`
+  - `Kind of know`
+  - `Don't know`
+- Filter by status and by topic
+- Use **light mode** or **dark mode** (toggle in UI)
 
 ## Quick start
-
-1. Create and activate a virtualenv.
-2. Install dependencies.
-3. Run the Flask app.
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-
-# Optional for better cards:
-# export OPENAI_API_KEY="your_key"
-# export OPENAI_MODEL="gpt-4.1-mini"
-
 python app.py
 ```
 
-Open:
-
-- [http://localhost:8000](http://localhost:8000)
+Open [http://localhost:8000](http://localhost:8000).
 
 ## Data storage
 
-- SQLite DB: `flashcards.db`
-- Uploaded files: `uploads/`
+- SQLite database: `flashcards.db`
+- Theme preference is saved in browser local storage.
 
-## API overview
+## API
 
 - `GET /api/projects`
 - `POST /api/projects`
 - `GET /api/projects/<id>`
-- `POST /api/projects/<id>/upload`
-- `GET /api/projects/<id>/cards?status=all|know|kind_of_know|dont_know`
+- `POST /api/projects/<id>/topics`
+- `GET /api/projects/<id>/cards?status=all|know|kind_of_know|dont_know&topic_id=all|<topic_id>`
 - `POST /api/projects/<id>/cards`
 - `PATCH /api/cards/<id>/status`
-
-## Notes
-
-- `.ppt` (legacy PowerPoint binary) is not supported directly; convert to `.pptx` first.
-- For best outcomes, upload text-rich lecture files (not scanned image-only PDFs).

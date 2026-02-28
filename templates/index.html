@@ -1,130 +1,168 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light" data-font-mode="editorial">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FlashForge | Lecture-to-Flashcards</title>
+    <title>Flashcard Maker | Project + Topic Flashcards</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
   </head>
   <body>
-    <div class="backdrop"></div>
-    <div class="layout">
-      <aside class="panel sidebar">
-        <div class="panel-head">
-          <h1>FlashForge</h1>
-          <p>Upload lectures. Train for exams with trackable mastery.</p>
+    <div class="aurora"></div>
+
+    <div class="shell">
+      <header class="panel topbar">
+        <div>
+          <h1>Flashcard Maker</h1>
+          <p>Build and review flashcards by project and topic.</p>
         </div>
-
-        <form id="new-project-form" class="stack">
-          <label>
-            Project name
-            <input id="project-name" required maxlength="80" placeholder="e.g. Molecular Biology Final" />
+        <div class="top-actions">
+          <label class="font-control" for="font-mode">
+            <span>Font</span>
+            <select id="font-mode">
+              <option value="editorial">Editorial</option>
+              <option value="clean">Clean</option>
+            </select>
           </label>
-          <label>
-            Notes (optional)
-            <textarea id="project-description" maxlength="400" placeholder="Syllabus scope, deadlines, goals"></textarea>
-          </label>
-          <button type="submit" class="primary">Create project</button>
-        </form>
+          <button id="theme-toggle" class="ghost" type="button">Dark mode</button>
+          <button id="refresh-projects" class="ghost" type="button">Refresh</button>
+        </div>
+      </header>
 
-        <div class="project-list-wrap">
-          <div class="label-row">
+      <div class="layout">
+        <aside class="panel sidebar">
+          <section class="stack">
             <h2>Projects</h2>
-            <button id="refresh-projects" type="button" class="ghost">Refresh</button>
-          </div>
-          <div id="project-list" class="project-list"></div>
-        </div>
-      </aside>
+            <form id="new-project-form" class="stack">
+              <label>
+                Project name
+                <input id="project-name" required maxlength="80" />
+              </label>
+              <label>
+                Description (optional)
+                <textarea id="project-description" maxlength="400"></textarea>
+              </label>
+              <button type="submit" class="primary">Add project</button>
+            </form>
+            <div id="project-list" class="project-list"></div>
+          </section>
 
-      <main class="main-grid">
-        <section class="panel uploader">
-          <div class="label-row">
-            <h2 id="active-project-title">Pick a project</h2>
-            <span id="generator-label" class="chip"></span>
-          </div>
-
-          <form id="upload-form" class="upload-form">
-            <label class="file-label">
-              Lecture file (PDF or PPTX)
-              <input id="lecture-file" type="file" accept=".pdf,.pptx" required />
-            </label>
-            <label>
-              Target cards
-              <input id="card-count" type="number" min="5" max="80" value="20" />
-            </label>
-            <button type="submit" class="primary">Upload + generate</button>
-          </form>
-
-          <div id="stats" class="stats-row"></div>
-          <div id="source-list" class="source-list"></div>
-        </section>
-
-        <section class="panel study">
-          <div class="label-row">
-            <h2>Study Mode</h2>
-            <div class="filters">
-              <button class="filter active" data-filter="all">All</button>
-              <button class="filter" data-filter="dont_know">Don't know</button>
-              <button class="filter" data-filter="kind_of_know">Kind of know</button>
-              <button class="filter" data-filter="know">Know</button>
+          <section class="stack">
+            <div class="label-row">
+              <h2>Topics</h2>
+              <span id="topics-caption" class="mono muted">Pick a project</span>
             </div>
-          </div>
+            <form id="new-topic-form" class="inline-form">
+              <input id="topic-name" maxlength="80" />
+              <button type="submit" class="secondary">Add</button>
+            </form>
+            <div id="topic-list" class="topic-list"></div>
+          </section>
+        </aside>
 
-          <div id="empty-study" class="empty-message">No cards yet. Upload a lecture to begin.</div>
+        <main class="main-grid">
+          <section class="panel compose">
+            <div class="label-row">
+              <h2 id="active-project-title">Select a project</h2>
+              <div id="stats" class="stats-row"></div>
+            </div>
 
-          <div id="card-shell" class="card-shell hidden">
-            <div id="card-progress" class="mono"></div>
-            <article class="flashcard">
-              <h3>Question</h3>
-              <p id="card-question"></p>
-              <div id="answer-block" class="answer hidden">
-                <h3>Answer</h3>
-                <p id="card-answer"></p>
+            <form id="manual-card-form" class="stack">
+              <label>
+                Topic
+                <select id="card-topic-select">
+                  <option value="">No topic</option>
+                </select>
+              </label>
+              <label>
+                Question
+                <textarea
+                  id="manual-question"
+                  required
+                  maxlength="600"
+                ></textarea>
+              </label>
+              <label>
+                Definition
+                <textarea
+                  id="manual-definition"
+                  required
+                  maxlength="3000"
+                ></textarea>
+              </label>
+              <button type="submit" class="primary">Save flashcard</button>
+            </form>
+          </section>
+
+          <section class="panel study">
+            <div class="label-row">
+              <h2>Study mode</h2>
+              <div class="filters">
+                <button class="filter active" data-filter="all" type="button">All</button>
+                <button class="filter" data-filter="dont_know" type="button">Don't know</button>
+                <button class="filter" data-filter="kind_of_know" type="button">Kind of know</button>
+                <button class="filter" data-filter="know" type="button">Know</button>
               </div>
-            </article>
-
-            <div class="card-actions">
-              <button id="show-answer" class="secondary">Show answer</button>
-              <button id="prev-card" class="ghost">Prev</button>
-              <button id="next-card" class="ghost">Next</button>
             </div>
 
-            <div class="rating-row">
-              <button data-status="dont_know" class="rating danger">Don't know</button>
-              <button data-status="kind_of_know" class="rating warn">Kind of know</button>
-              <button data-status="know" class="rating good">Know</button>
+            <div class="study-toolbar">
+              <label>
+                Topic filter
+                <select id="study-topic-filter">
+                  <option value="all">All topics</option>
+                </select>
+              </label>
             </div>
-          </div>
-        </section>
 
-        <section class="panel manual-card">
-          <h2>Add your own card</h2>
-          <form id="manual-card-form" class="stack">
-            <label>
-              Question
-              <textarea id="manual-question" required maxlength="600" placeholder="What concept do you want to drill?"></textarea>
-            </label>
-            <label>
-              Answer
-              <textarea id="manual-answer" required maxlength="2000" placeholder="Detailed explanation"></textarea>
-            </label>
-            <button type="submit" class="primary">Save card</button>
-          </form>
-        </section>
-      </main>
+            <div id="empty-study" class="empty-message">Add flashcards to start studying this project.</div>
+
+            <div id="card-shell" class="card-shell hidden">
+              <div class="card-meta">
+                <span id="card-progress" class="mono"></span>
+                <span id="card-topic-pill" class="pill">No topic</span>
+              </div>
+
+              <article class="flashcard">
+                <h3>Question</h3>
+                <p id="card-question"></p>
+
+                <div id="definition-block" class="definition hidden">
+                  <h3>Definition</h3>
+                  <p id="card-definition"></p>
+                </div>
+              </article>
+
+              <div class="card-actions">
+                <button id="show-definition" class="secondary" type="button">Show definition</button>
+                <button id="prev-card" class="ghost" type="button">Prev</button>
+                <button id="next-card" class="ghost" type="button">Next</button>
+              </div>
+
+              <div class="rating-row">
+                <button data-status="dont_know" class="rating danger" type="button">Don't know</button>
+                <button data-status="kind_of_know" class="rating warn" type="button">Kind of know</button>
+                <button data-status="know" class="rating good" type="button">Know</button>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
     </div>
 
     <template id="project-item-template">
       <button class="project-item" type="button">
-        <div class="project-title"></div>
-        <div class="mono project-meta"></div>
+        <span class="project-title"></span>
+        <span class="project-meta mono"></span>
       </button>
+    </template>
+
+    <template id="topic-chip-template">
+      <span class="topic-chip"></span>
     </template>
 
     <script src="{{ url_for('static', filename='app.js') }}" defer></script>
