@@ -7,6 +7,9 @@ const state = {
   fontMode: "editorial",
   activeMode: "insert",
   projectsPanelOpen: true,
+  editingCardId: null,
+  editingOriginalImageUrl: null,
+  previewBlobUrl: null,
   study: emptyStudyState(),
 };
 
@@ -37,8 +40,15 @@ const els = {
   insertView: document.getElementById("insert-view"),
   studyView: document.getElementById("study-view"),
   manualCardForm: document.getElementById("manual-card-form"),
+  cardFormTitle: document.getElementById("card-form-title"),
+  cancelEdit: document.getElementById("cancel-edit"),
   manualQuestion: document.getElementById("manual-question"),
   manualDefinition: document.getElementById("manual-definition"),
+  manualImage: document.getElementById("manual-image"),
+  formImagePreviewWrap: document.getElementById("form-image-preview-wrap"),
+  formImagePreview: document.getElementById("form-image-preview"),
+  clearImageOnSave: document.getElementById("clear-image-on-save"),
+  saveCardButton: document.getElementById("save-card-button"),
   cardsCount: document.getElementById("cards-count"),
   cardsList: document.getElementById("cards-list"),
   listCardTemplate: document.getElementById("list-card-template"),
@@ -52,6 +62,8 @@ const els = {
   flipCard: document.getElementById("flip-card"),
   studyQuestion: document.getElementById("study-question"),
   studyAnswer: document.getElementById("study-answer"),
+  studyImageWrap: document.getElementById("study-image-wrap"),
+  studyImage: document.getElementById("study-image"),
   flipButton: document.getElementById("flip-button"),
   prevStudy: document.getElementById("prev-study"),
   nextStudy: document.getElementById("next-study"),
@@ -61,6 +73,8 @@ const els = {
   summaryTitle: document.getElementById("summary-title"),
   summaryBody: document.getElementById("summary-body"),
 };
+
+const clearImageRow = els.clearImageOnSave.closest(".checkbox-row");
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -191,6 +205,95 @@ function renderProjects() {
   });
 }
 
+function getCardById(cardId) {
+  return state.cards.find((card) => card.id === cardId) || null;
+}
+
+function clearPreviewBlobUrl() {
+  if (state.previewBlobUrl) {
+    URL.revokeObjectURL(state.previewBlobUrl);
+    state.previewBlobUrl = null;
+  }
+}
+
+function setFormImagePreview(url, isBlob = false) {
+  clearPreviewBlobUrl();
+
+  if (!url) {
+    els.formImagePreviewWrap.classList.add("hidden");
+    els.formImagePreview.removeAttribute("src");
+    return;
+  }
+
+  if (isBlob) {
+    state.previewBlobUrl = url;
+  }
+
+  els.formImagePreview.src = url;
+  els.formImagePreviewWrap.classList.remove("hidden");
+}
+
+function refreshFormImagePreview() {
+  const selected = els.manualImage.files?.[0];
+  const clearRequested = els.clearImageOnSave.checked;
+
+  if (selected) {
+    const blobUrl = URL.createObjectURL(selected);
+    setFormImagePreview(blobUrl, true);
+    return;
+  }
+
+  if (state.editingOriginalImageUrl && !clearRequested) {
+    setFormImagePreview(state.editingOriginalImageUrl, false);
+    return;
+  }
+
+  setFormImagePreview(null);
+}
+
+function renderClearImageVisibility() {
+  const hasEditableImage = Boolean(state.editingCardId && state.editingOriginalImageUrl);
+  clearImageRow.classList.toggle("hidden", !hasEditableImage);
+
+  if (!hasEditableImage) {
+    els.clearImageOnSave.checked = false;
+  }
+}
+
+function resetCardForm() {
+  state.editingCardId = null;
+  state.editingOriginalImageUrl = null;
+  els.cardFormTitle.textContent = "Add flashcard";
+  els.saveCardButton.textContent = "Save flashcard";
+  els.cancelEdit.classList.add("hidden");
+  els.manualQuestion.value = "";
+  els.manualDefinition.value = "";
+  els.manualImage.value = "";
+  els.clearImageOnSave.checked = false;
+  renderClearImageVisibility();
+  refreshFormImagePreview();
+}
+
+function enterEditMode(cardId) {
+  const card = getCardById(cardId);
+  if (!card) {
+    return;
+  }
+
+  state.editingCardId = card.id;
+  state.editingOriginalImageUrl = card.image_url || null;
+  els.cardFormTitle.textContent = "Edit flashcard";
+  els.saveCardButton.textContent = "Save changes";
+  els.cancelEdit.classList.remove("hidden");
+  els.manualQuestion.value = card.question;
+  els.manualDefinition.value = card.definition || card.answer;
+  els.manualImage.value = "";
+  els.clearImageOnSave.checked = false;
+  renderClearImageVisibility();
+  refreshFormImagePreview();
+  els.manualQuestion.focus();
+}
+
 function renderCardsList() {
   els.cardsList.innerHTML = "";
 
@@ -211,9 +314,28 @@ function renderCardsList() {
     const node = els.listCardTemplate.content.firstElementChild.cloneNode(true);
     node.querySelector(".card-question").textContent = card.question;
     node.querySelector(".card-answer").textContent = card.definition || card.answer;
+
+    const imageWrap = node.querySelector(".list-image-wrap");
+    const image = node.querySelector(".list-image");
+    if (card.image_url) {
+      image.src = card.image_url;
+      imageWrap.classList.remove("hidden");
+    } else {
+      imageWrap.classList.add("hidden");
+      image.removeAttribute("src");
+    }
+
     const statusNode = node.querySelector(".status-chip");
     statusNode.className = `status-chip ${statusClass(card.status)}`;
     statusNode.textContent = statusLabel(card.status);
+
+    const editButton = node.querySelector(".edit-card");
+    const deleteButton = node.querySelector(".delete-card");
+    editButton.addEventListener("click", () => enterEditMode(card.id));
+    deleteButton.addEventListener("click", () => {
+      deleteCard(card.id).catch((error) => alert(error.message));
+    });
+
     els.cardsList.appendChild(node);
   });
 }
@@ -224,6 +346,7 @@ function clearProjectViews() {
   state.projectStats = null;
   renderStats();
   renderCardsList();
+  resetCardForm();
   resetStudySession();
   renderStudy();
 }
@@ -259,6 +382,7 @@ async function loadSelectedProject() {
   renderStats();
   renderCardsList();
 
+  resetCardForm();
   resetStudySession();
   renderStudy();
 }
@@ -296,8 +420,26 @@ async function createProject(event) {
   await loadSelectedProject();
 }
 
-async function addCard(event) {
+function buildCardFormData() {
+  const formData = new FormData();
+  formData.append("question", els.manualQuestion.value.trim());
+  formData.append("definition", els.manualDefinition.value.trim());
+
+  const imageFile = els.manualImage.files?.[0];
+  if (imageFile) {
+    formData.append("image", imageFile);
+  }
+
+  if (els.clearImageOnSave.checked) {
+    formData.append("clear_image", "true");
+  }
+
+  return formData;
+}
+
+async function saveCard(event) {
   event.preventDefault();
+
   if (!state.selectedProjectId) {
     alert("Create or select a project first.");
     return;
@@ -309,14 +451,38 @@ async function addCard(event) {
     return;
   }
 
-  await api(`/api/projects/${state.selectedProjectId}/cards`, {
-    method: "POST",
-    body: JSON.stringify({ question, definition }),
-  });
+  const formData = buildCardFormData();
 
-  els.manualQuestion.value = "";
-  els.manualDefinition.value = "";
+  if (state.editingCardId) {
+    await api(`/api/cards/${state.editingCardId}`, {
+      method: "PATCH",
+      body: formData,
+    });
+  } else {
+    await api(`/api/projects/${state.selectedProjectId}/cards`, {
+      method: "POST",
+      body: formData,
+    });
+  }
+
+  await fetchProjects();
+  renderProjects();
+  await loadSelectedProject();
   els.manualQuestion.focus();
+}
+
+async function deleteCard(cardId) {
+  const card = getCardById(cardId);
+  if (!card) {
+    return;
+  }
+
+  const confirmed = window.confirm("Delete this flashcard? This cannot be undone.");
+  if (!confirmed) {
+    return;
+  }
+
+  await api(`/api/cards/${cardId}`, { method: "DELETE" });
 
   await fetchProjects();
   renderProjects();
@@ -344,6 +510,13 @@ function renderStudyCard() {
 
   els.studyQuestion.textContent = card.question;
   els.studyAnswer.textContent = card.definition || card.answer;
+  if (card.image_url) {
+    els.studyImage.src = card.image_url;
+    els.studyImageWrap.classList.remove("hidden");
+  } else {
+    els.studyImageWrap.classList.add("hidden");
+    els.studyImage.removeAttribute("src");
+  }
   els.flipCard.classList.remove("flipped");
 }
 
@@ -551,8 +724,15 @@ function wireEvents() {
   });
 
   els.manualCardForm.addEventListener("submit", (event) => {
-    addCard(event).catch((error) => alert(error.message));
+    saveCard(event).catch((error) => alert(error.message));
   });
+
+  els.cancelEdit.addEventListener("click", () => {
+    resetCardForm();
+  });
+
+  els.manualImage.addEventListener("change", refreshFormImagePreview);
+  els.clearImageOnSave.addEventListener("change", refreshFormImagePreview);
 
   els.startSession.addEventListener("click", startStudySession);
   els.pauseSession.addEventListener("click", pauseStudySession);
@@ -575,6 +755,8 @@ async function boot() {
   applyProjectPanelVisibility(true);
   setActiveMode("insert");
   wireEvents();
+  renderClearImageVisibility();
+  refreshFormImagePreview();
   await loadAppData();
 }
 

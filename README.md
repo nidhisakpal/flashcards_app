@@ -4,8 +4,10 @@ Flashcard Maker is a local web app for study prep.
 
 - Organize flashcards by **project**
 - Manually add **question + definition** cards
+- Attach optional **images/diagrams** to cards
+- Edit and delete cards in Insert mode
 - Study with a flip-card session view
-- Track outcomes with only:
+- Track outcomes with:
   - `Know`
   - `Didn't know`
 
@@ -25,6 +27,7 @@ Open [http://localhost:8000](http://localhost:8000).
 ## Data storage
 
 - SQLite database: `flashcards.db`
+- Uploaded card images: `uploads/cards/`
 - Theme/font preferences are saved in browser local storage.
 
 ## API
@@ -33,5 +36,7 @@ Open [http://localhost:8000](http://localhost:8000).
 - `POST /api/projects`
 - `GET /api/projects/<id>`
 - `GET /api/projects/<id>/cards?status=all|know|didnt_know`
-- `POST /api/projects/<id>/cards`
+- `POST /api/projects/<id>/cards` (supports multipart image upload)
+- `PATCH /api/cards/<id>` (edit question/definition/image)
+- `DELETE /api/cards/<id>`
 - `PATCH /api/cards/<id>/status`

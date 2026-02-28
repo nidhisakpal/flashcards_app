@@ -68,6 +68,11 @@
 
           <section id="insert-view" class="view-section">
             <form id="manual-card-form" class="stack card-form">
+              <div class="form-head">
+                <h3 id="card-form-title">Add flashcard</h3>
+                <button id="cancel-edit" class="ghost hidden" type="button">Cancel edit</button>
+              </div>
+
               <label>
                 Question
                 <textarea id="manual-question" required maxlength="600"></textarea>
@@ -76,7 +81,19 @@
                 Definition
                 <textarea id="manual-definition" required maxlength="3000"></textarea>
               </label>
-              <button type="submit" class="primary">Save flashcard</button>
+              <label>
+                Image (optional)
+                <input id="manual-image" type="file" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif" />
+              </label>
+              <div id="form-image-preview-wrap" class="form-image-preview hidden">
+                <img id="form-image-preview" alt="Card image preview" />
+              </div>
+              <label class="checkbox-row">
+                <input id="clear-image-on-save" type="checkbox" />
+                Remove existing image when saving
+              </label>
+
+              <button id="save-card-button" type="submit" class="primary">Save flashcard</button>
             </form>
 
             <div class="cards-list-head">
@@ -107,6 +124,9 @@
                   <article class="flip-face back">
                     <p class="face-label">Answer</p>
                     <p id="study-answer" class="face-text"></p>
+                    <div id="study-image-wrap" class="study-image-wrap hidden">
+                      <img id="study-image" alt="Flashcard diagram" />
+                    </div>
                   </article>
                 </div>
               </div>
@@ -148,8 +168,17 @@
         <div class="list-col">
           <p class="list-label">Answer</p>
           <p class="list-text card-answer"></p>
+          <div class="list-image-wrap hidden">
+            <img class="list-image" alt="Flashcard diagram" />
+          </div>
         </div>
-        <div class="status-chip"></div>
+        <div class="list-side">
+          <div class="status-chip"></div>
+          <div class="list-actions">
+            <button class="ghost edit-card" type="button">Edit</button>
+            <button class="ghost delete-card" type="button">Delete</button>
+          </div>
+        </div>
       </article>
     </template>
 
