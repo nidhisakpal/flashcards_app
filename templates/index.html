@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Flashcard Maker | Project + Topic Flashcards</title>
+    <title>Flashcard Maker</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -13,13 +13,11 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
   </head>
   <body>
-    <div class="aurora"></div>
-
     <div class="shell">
       <header class="panel topbar">
         <div>
           <h1>Flashcard Maker</h1>
-          <p>Build and review flashcards by project and topic.</p>
+          <p>Create, organize, and study your flashcards by project.</p>
         </div>
         <div class="top-actions">
           <label class="font-control" for="font-mode">
@@ -31,123 +29,103 @@
           </label>
           <button id="theme-toggle" class="ghost" type="button">Dark mode</button>
           <button id="refresh-projects" class="ghost" type="button">Refresh</button>
+          <button id="project-panel-toggle" class="ghost" type="button">Hide projects</button>
         </div>
       </header>
 
-      <div class="layout">
-        <aside class="panel sidebar">
-          <section class="stack">
+      <div class="workspace">
+        <aside id="project-panel" class="panel project-panel">
+          <div class="panel-header-row">
             <h2>Projects</h2>
-            <form id="new-project-form" class="stack">
-              <label>
-                Project name
-                <input id="project-name" required maxlength="80" />
-              </label>
-              <label>
-                Description (optional)
-                <textarea id="project-description" maxlength="400"></textarea>
-              </label>
-              <button type="submit" class="primary">Add project</button>
-            </form>
-            <div id="project-list" class="project-list"></div>
-          </section>
+          </div>
 
-          <section class="stack">
-            <div class="label-row">
-              <h2>Topics</h2>
-              <span id="topics-caption" class="mono muted">Pick a project</span>
-            </div>
-            <form id="new-topic-form" class="inline-form">
-              <input id="topic-name" maxlength="80" />
-              <button type="submit" class="secondary">Add</button>
-            </form>
-            <div id="topic-list" class="topic-list"></div>
-          </section>
+          <form id="new-project-form" class="stack">
+            <label>
+              Project name
+              <input id="project-name" required maxlength="80" />
+            </label>
+            <label>
+              Description (optional)
+              <textarea id="project-description" maxlength="400"></textarea>
+            </label>
+            <button type="submit" class="primary">Add project</button>
+          </form>
+
+          <div id="project-list" class="project-list"></div>
         </aside>
 
-        <main class="main-grid">
-          <section class="panel compose">
-            <div class="label-row">
+        <main class="panel main-area">
+          <div class="main-head">
+            <div>
               <h2 id="active-project-title">Select a project</h2>
               <div id="stats" class="stats-row"></div>
             </div>
+            <div class="mode-toggle" role="tablist" aria-label="App mode">
+              <button id="mode-insert" class="mode-btn active" type="button" data-mode="insert">Insert</button>
+              <button id="mode-study" class="mode-btn" type="button" data-mode="study">Study</button>
+            </div>
+          </div>
 
-            <form id="manual-card-form" class="stack">
-              <label>
-                Topic
-                <select id="card-topic-select">
-                  <option value="">No topic</option>
-                </select>
-              </label>
+          <section id="insert-view" class="view-section">
+            <form id="manual-card-form" class="stack card-form">
               <label>
                 Question
-                <textarea
-                  id="manual-question"
-                  required
-                  maxlength="600"
-                ></textarea>
+                <textarea id="manual-question" required maxlength="600"></textarea>
               </label>
               <label>
                 Definition
-                <textarea
-                  id="manual-definition"
-                  required
-                  maxlength="3000"
-                ></textarea>
+                <textarea id="manual-definition" required maxlength="3000"></textarea>
               </label>
               <button type="submit" class="primary">Save flashcard</button>
             </form>
+
+            <div class="cards-list-head">
+              <h3>Your flashcards</h3>
+              <span id="cards-count" class="mono muted"></span>
+            </div>
+            <div id="cards-list" class="cards-list"></div>
           </section>
 
-          <section class="panel study">
-            <div class="label-row">
-              <h2>Study mode</h2>
-              <div class="filters">
-                <button class="filter active" data-filter="all" type="button">All</button>
-                <button class="filter" data-filter="dont_know" type="button">Don't know</button>
-                <button class="filter" data-filter="kind_of_know" type="button">Kind of know</button>
-                <button class="filter" data-filter="know" type="button">Know</button>
-              </div>
+          <section id="study-view" class="view-section hidden">
+            <div class="study-controls">
+              <button id="start-session" class="primary" type="button">Start session</button>
+              <button id="pause-session" class="ghost hidden" type="button">Pause session</button>
+              <button id="resume-session" class="secondary hidden" type="button">Resume</button>
+              <button id="end-session" class="ghost hidden" type="button">End session</button>
+              <span id="study-progress" class="mono"></span>
             </div>
 
-            <div class="study-toolbar">
-              <label>
-                Topic filter
-                <select id="study-topic-filter">
-                  <option value="all">All topics</option>
-                </select>
-              </label>
-            </div>
+            <div id="study-empty" class="empty-message">Start a study session to review your flashcards.</div>
 
-            <div id="empty-study" class="empty-message">Add flashcards to start studying this project.</div>
-
-            <div id="card-shell" class="card-shell hidden">
-              <div class="card-meta">
-                <span id="card-progress" class="mono"></span>
-                <span id="card-topic-pill" class="pill">No topic</span>
-              </div>
-
-              <article class="flashcard">
-                <h3>Question</h3>
-                <p id="card-question"></p>
-
-                <div id="definition-block" class="definition hidden">
-                  <h3>Definition</h3>
-                  <p id="card-definition"></p>
+            <div id="study-stage" class="study-stage hidden">
+              <div id="flip-card" class="flip-card" aria-live="polite">
+                <div class="flip-card-inner">
+                  <article class="flip-face front">
+                    <p class="face-label">Question</p>
+                    <p id="study-question" class="face-text"></p>
+                  </article>
+                  <article class="flip-face back">
+                    <p class="face-label">Answer</p>
+                    <p id="study-answer" class="face-text"></p>
+                  </article>
                 </div>
-              </article>
+              </div>
 
               <div class="card-actions">
-                <button id="show-definition" class="secondary" type="button">Show definition</button>
-                <button id="prev-card" class="ghost" type="button">Prev</button>
-                <button id="next-card" class="ghost" type="button">Next</button>
+                <button id="flip-button" class="secondary" type="button">Flip card</button>
+                <button id="prev-study" class="ghost" type="button">Prev</button>
+                <button id="next-study" class="ghost" type="button">Next</button>
               </div>
 
               <div class="rating-row">
-                <button data-status="dont_know" class="rating danger" type="button">Don't know</button>
-                <button data-status="kind_of_know" class="rating warn" type="button">Kind of know</button>
-                <button data-status="know" class="rating good" type="button">Know</button>
+                <button id="mark-didnt-know" class="rating danger" type="button">Didn't know</button>
+                <button id="mark-know" class="rating good" type="button">Know</button>
               </div>
+            </div>
+
+            <div id="study-summary" class="summary hidden">
+              <h3 id="summary-title">Session summary</h3>
+              <div id="summary-body"></div>
             </div>
           </section>
         </main>
@@ -161,8 +139,18 @@
       </button>
     </template>
 
-    <template id="topic-chip-template">
-      <span class="topic-chip"></span>
+    <template id="list-card-template">
+      <article class="list-card">
+        <div class="list-col">
+          <p class="list-label">Question</p>
+          <p class="list-text card-question"></p>
+        </div>
+        <div class="list-col">
+          <p class="list-label">Answer</p>
+          <p class="list-text card-answer"></p>
+        </div>
+        <div class="status-chip"></div>
+      </article>
     </template>
 
     <script src="{{ url_for('static', filename='app.js') }}" defer></script>

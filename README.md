@@ -1,24 +1,15 @@
-# Flashcard Maker (Manual Project + Topic Flashcards)
+# Flashcard Maker (Manual Project Flashcards)
 
-Flashcard Maker is a local web app for serious study prep. It lets you create unlimited projects, organize them by topics, and manually add flashcards with a **question** and **definition**.
+Flashcard Maker is a local web app for study prep.
 
-No PDF/slide upload or auto-generation is used in this version.
-
-## What you can do
-
-- Create as many projects as you want (courses, exam tracks, research areas)
-- Create as many topics inside each project as you want
-- Add manual flashcards with:
-  - Question
-  - Definition
-  - Optional topic assignment
-- Study cards in click-through mode
-- Mark mastery per card:
+- Organize flashcards by **project**
+- Manually add **question + definition** cards
+- Study with a flip-card session view
+- Track outcomes with only:
   - `Know`
-  - `Kind of know`
-  - `Don't know`
-- Filter by status and by topic
-- Use **light mode** or **dark mode** (toggle in UI)
+  - `Didn't know`
+
+No PDF/slide upload and no auto-generation.
 
 ## Quick start
 
@@ -34,14 +25,13 @@ Open [http://localhost:8000](http://localhost:8000).
 ## Data storage
 
 - SQLite database: `flashcards.db`
-- Theme preference is saved in browser local storage.
+- Theme/font preferences are saved in browser local storage.
 
 ## API
 
 - `GET /api/projects`
 - `POST /api/projects`
 - `GET /api/projects/<id>`
-- `POST /api/projects/<id>/topics`
-- `GET /api/projects/<id>/cards?status=all|know|kind_of_know|dont_know&topic_id=all|<topic_id>`
+- `GET /api/projects/<id>/cards?status=all|know|didnt_know`
 - `POST /api/projects/<id>/cards`
 - `PATCH /api/cards/<id>/status`

@@ -1,49 +1,65 @@
 const state = {
   projects: [],
   selectedProjectId: null,
-  topics: [],
   cards: [],
-  filteredCards: [],
-  currentCardIndex: 0,
-  statusFilter: "all",
-  topicFilter: "all",
+  projectStats: null,
   theme: "light",
   fontMode: "editorial",
+  activeMode: "insert",
+  projectsPanelOpen: true,
+  study: emptyStudyState(),
 };
+
+function emptyStudyState() {
+  return {
+    active: false,
+    paused: false,
+    queue: [],
+    index: 0,
+    results: {},
+    startedAt: null,
+  };
+}
 
 const els = {
   fontMode: document.getElementById("font-mode"),
   themeToggle: document.getElementById("theme-toggle"),
   refreshProjects: document.getElementById("refresh-projects"),
+  projectPanelToggle: document.getElementById("project-panel-toggle"),
   newProjectForm: document.getElementById("new-project-form"),
   projectName: document.getElementById("project-name"),
   projectDescription: document.getElementById("project-description"),
   projectList: document.getElementById("project-list"),
   projectItemTemplate: document.getElementById("project-item-template"),
-  newTopicForm: document.getElementById("new-topic-form"),
-  topicName: document.getElementById("topic-name"),
-  topicList: document.getElementById("topic-list"),
-  topicChipTemplate: document.getElementById("topic-chip-template"),
-  topicsCaption: document.getElementById("topics-caption"),
   activeProjectTitle: document.getElementById("active-project-title"),
   stats: document.getElementById("stats"),
+  modeButtons: [...document.querySelectorAll(".mode-btn")],
+  insertView: document.getElementById("insert-view"),
+  studyView: document.getElementById("study-view"),
   manualCardForm: document.getElementById("manual-card-form"),
-  cardTopicSelect: document.getElementById("card-topic-select"),
   manualQuestion: document.getElementById("manual-question"),
   manualDefinition: document.getElementById("manual-definition"),
-  filters: [...document.querySelectorAll(".filter")],
-  studyTopicFilter: document.getElementById("study-topic-filter"),
-  emptyStudy: document.getElementById("empty-study"),
-  cardShell: document.getElementById("card-shell"),
-  cardProgress: document.getElementById("card-progress"),
-  cardTopicPill: document.getElementById("card-topic-pill"),
-  cardQuestion: document.getElementById("card-question"),
-  cardDefinition: document.getElementById("card-definition"),
-  definitionBlock: document.getElementById("definition-block"),
-  showDefinition: document.getElementById("show-definition"),
-  prevCard: document.getElementById("prev-card"),
-  nextCard: document.getElementById("next-card"),
-  ratingButtons: [...document.querySelectorAll(".rating")],
+  cardsCount: document.getElementById("cards-count"),
+  cardsList: document.getElementById("cards-list"),
+  listCardTemplate: document.getElementById("list-card-template"),
+  startSession: document.getElementById("start-session"),
+  pauseSession: document.getElementById("pause-session"),
+  resumeSession: document.getElementById("resume-session"),
+  endSession: document.getElementById("end-session"),
+  studyProgress: document.getElementById("study-progress"),
+  studyEmpty: document.getElementById("study-empty"),
+  studyStage: document.getElementById("study-stage"),
+  flipCard: document.getElementById("flip-card"),
+  studyQuestion: document.getElementById("study-question"),
+  studyAnswer: document.getElementById("study-answer"),
+  flipButton: document.getElementById("flip-button"),
+  prevStudy: document.getElementById("prev-study"),
+  nextStudy: document.getElementById("next-study"),
+  markDidntKnow: document.getElementById("mark-didnt-know"),
+  markKnow: document.getElementById("mark-know"),
+  studySummary: document.getElementById("study-summary"),
+  summaryTitle: document.getElementById("summary-title"),
+  summaryBody: document.getElementById("summary-body"),
 };
 
 async function api(path, options = {}) {
@@ -99,17 +115,55 @@ function applyFontMode(mode) {
   els.fontMode.value = nextMode;
 }
 
-function setStatusFilter(filter) {
-  state.statusFilter = filter;
-  els.filters.forEach((button) => {
-    button.classList.toggle("active", button.dataset.filter === filter);
-  });
+function applyProjectPanelVisibility(isOpen) {
+  state.projectsPanelOpen = isOpen;
+  document.body.classList.toggle("projects-hidden", !isOpen);
+  els.projectPanelToggle.textContent = isOpen ? "Hide projects" : "Show projects";
 }
 
-function formatStatus(status) {
+function toggleProjectPanel() {
+  applyProjectPanelVisibility(!state.projectsPanelOpen);
+}
+
+function setActiveMode(mode) {
+  state.activeMode = mode === "study" ? "study" : "insert";
+  els.modeButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.mode === state.activeMode);
+  });
+  els.insertView.classList.toggle("hidden", state.activeMode !== "insert");
+  els.studyView.classList.toggle("hidden", state.activeMode !== "study");
+}
+
+function statusLabel(status) {
   if (status === "know") return "Know";
-  if (status === "kind_of_know") return "Kind of know";
-  return "Don't know";
+  return "Didn't know";
+}
+
+function statusClass(status) {
+  return status === "know" ? "know" : "didnt";
+}
+
+function computeStats(cards) {
+  const total = cards.length;
+  const know = cards.filter((card) => card.status === "know").length;
+  return {
+    total_cards: total,
+    know_count: know,
+    didnt_know_count: total - know,
+  };
+}
+
+function renderStats() {
+  if (!state.projectStats) {
+    els.stats.innerHTML = "";
+    return;
+  }
+
+  els.stats.innerHTML = [
+    `<span class="stat">Total: ${state.projectStats.total_cards}</span>`,
+    `<span class="stat">Know: ${state.projectStats.know_count}</span>`,
+    `<span class="stat">Didn't know: ${state.projectStats.didnt_know_count}</span>`,
+  ].join("");
 }
 
 function renderProjects() {
@@ -128,7 +182,7 @@ function renderProjects() {
     node.querySelector(".project-title").textContent = project.name;
     node.querySelector(
       ".project-meta"
-    ).textContent = `${project.topic_count} topics | ${project.total_cards} cards`;
+    ).textContent = `${project.total_cards} cards | ${project.know_count} known`;
     node.classList.toggle("active", project.id === state.selectedProjectId);
     node.addEventListener("click", () => {
       selectProject(project.id).catch((error) => alert(error.message));
@@ -137,120 +191,41 @@ function renderProjects() {
   });
 }
 
-function renderTopics() {
-  els.topicList.innerHTML = "";
+function renderCardsList() {
+  els.cardsList.innerHTML = "";
 
   if (!state.selectedProjectId) {
-    els.topicsCaption.textContent = "Pick a project";
-    els.topicList.innerHTML = '<div class="empty-message">Select a project first.</div>';
+    els.cardsCount.textContent = "";
+    els.cardsList.innerHTML = '<div class="empty-message">Select a project to start adding cards.</div>';
     return;
   }
 
-  els.topicsCaption.textContent = `${state.topics.length} topic${state.topics.length === 1 ? "" : "s"}`;
+  els.cardsCount.textContent = `${state.cards.length} card${state.cards.length === 1 ? "" : "s"}`;
 
-  if (!state.topics.length) {
-    els.topicList.innerHTML = '<div class="empty-message">No topics yet.</div>';
+  if (!state.cards.length) {
+    els.cardsList.innerHTML = '<div class="empty-message">No flashcards yet in this project.</div>';
     return;
   }
 
-  state.topics.forEach((topic) => {
-    const chip = els.topicChipTemplate.content.firstElementChild.cloneNode(true);
-    chip.textContent = `${topic.name} (${topic.card_count})`;
-    els.topicList.appendChild(chip);
+  state.cards.forEach((card) => {
+    const node = els.listCardTemplate.content.firstElementChild.cloneNode(true);
+    node.querySelector(".card-question").textContent = card.question;
+    node.querySelector(".card-answer").textContent = card.definition || card.answer;
+    const statusNode = node.querySelector(".status-chip");
+    statusNode.className = `status-chip ${statusClass(card.status)}`;
+    statusNode.textContent = statusLabel(card.status);
+    els.cardsList.appendChild(node);
   });
 }
 
-function setSelectOptions(select, options, defaultLabel, includeAll = false) {
-  const previousValue = select.value;
-  select.innerHTML = "";
-
-  if (includeAll) {
-    const allOption = document.createElement("option");
-    allOption.value = "all";
-    allOption.textContent = defaultLabel;
-    select.appendChild(allOption);
-  } else {
-    const noneOption = document.createElement("option");
-    noneOption.value = "";
-    noneOption.textContent = defaultLabel;
-    select.appendChild(noneOption);
-  }
-
-  options.forEach((topic) => {
-    const option = document.createElement("option");
-    option.value = String(topic.id);
-    option.textContent = topic.name;
-    select.appendChild(option);
-  });
-
-  const hasPreviousValue = [...select.options].some((option) => option.value === previousValue);
-  select.value = hasPreviousValue ? previousValue : includeAll ? "all" : "";
-}
-
-function renderProjectDetails(details) {
-  if (!details) {
-    els.activeProjectTitle.textContent = "Select a project";
-    els.stats.innerHTML = "";
-    state.topics = [];
-    renderTopics();
-    setSelectOptions(els.cardTopicSelect, [], "No topic", false);
-    setSelectOptions(els.studyTopicFilter, [], "All topics", true);
-    return;
-  }
-
-  els.activeProjectTitle.textContent = details.project.name;
-
-  const stats = details.stats;
-  els.stats.innerHTML = [
-    `<span class="stat">Total: ${stats.total_cards}</span>`,
-    `<span class="stat">Know: ${stats.know_count}</span>`,
-    `<span class="stat">Kind of know: ${stats.kind_of_know_count}</span>`,
-    `<span class="stat">Don't know: ${stats.dont_know_count}</span>`,
-  ].join("");
-
-  state.topics = details.topics;
-  renderTopics();
-  setSelectOptions(els.cardTopicSelect, details.topics, "No topic", false);
-  setSelectOptions(els.studyTopicFilter, details.topics, "All topics", true);
-
-  if (!["all", ...details.topics.map((topic) => String(topic.id))].includes(state.topicFilter)) {
-    state.topicFilter = "all";
-    els.studyTopicFilter.value = "all";
-  }
-}
-
-function applyFilters() {
-  state.filteredCards = state.cards.filter((card) => {
-    const statusPass = state.statusFilter === "all" || card.status === state.statusFilter;
-    const topicPass = state.topicFilter === "all" || String(card.topic_id || "") === state.topicFilter;
-    return statusPass && topicPass;
-  });
-
-  if (state.currentCardIndex >= state.filteredCards.length) {
-    state.currentCardIndex = 0;
-  }
-
-  renderCurrentCard();
-}
-
-function renderCurrentCard() {
-  const total = state.filteredCards.length;
-
-  if (!total) {
-    els.cardShell.classList.add("hidden");
-    els.emptyStudy.classList.remove("hidden");
-    return;
-  }
-
-  const card = state.filteredCards[state.currentCardIndex];
-
-  els.emptyStudy.classList.add("hidden");
-  els.cardShell.classList.remove("hidden");
-  els.cardProgress.textContent = `Card ${state.currentCardIndex + 1}/${total} | ${formatStatus(card.status)}`;
-  els.cardTopicPill.textContent = card.topic_name || "No topic";
-  els.cardQuestion.textContent = card.question;
-  els.cardDefinition.textContent = card.definition || card.answer;
-  els.definitionBlock.classList.add("hidden");
+function clearProjectViews() {
+  els.activeProjectTitle.textContent = "Select a project";
+  state.cards = [];
+  state.projectStats = null;
+  renderStats();
+  renderCardsList();
+  resetStudySession();
+  renderStudy();
 }
 
 async function fetchProjects() {
@@ -267,42 +242,44 @@ async function fetchProjects() {
   }
 }
 
-async function hydrateSelectedProject() {
+async function loadSelectedProject() {
   if (!state.selectedProjectId) {
-    renderProjectDetails(null);
-    state.cards = [];
-    applyFilters();
+    clearProjectViews();
     return;
   }
 
-  const [details, cardsResponse] = await Promise.all([
+  const [projectResponse, cardsResponse] = await Promise.all([
     api(`/api/projects/${state.selectedProjectId}`),
-    api(`/api/projects/${state.selectedProjectId}/cards?status=all&topic_id=all`),
+    api(`/api/projects/${state.selectedProjectId}/cards?status=all`),
   ]);
 
-  renderProjectDetails(details);
+  els.activeProjectTitle.textContent = projectResponse.project.name;
   state.cards = cardsResponse.cards;
-  state.topicFilter = els.studyTopicFilter.value;
-  applyFilters();
+  state.projectStats = projectResponse.stats || computeStats(state.cards);
+  renderStats();
+  renderCardsList();
+
+  resetStudySession();
+  renderStudy();
 }
 
 async function loadAppData() {
   await fetchProjects();
   renderProjects();
-  await hydrateSelectedProject();
+  await loadSelectedProject();
 }
 
 async function selectProject(projectId) {
   state.selectedProjectId = projectId;
   renderProjects();
-  await hydrateSelectedProject();
+  await loadSelectedProject();
 }
 
 async function createProject(event) {
   event.preventDefault();
-
   const name = els.projectName.value.trim();
   const description = els.projectDescription.value.trim();
+
   if (!name) {
     return;
   }
@@ -316,37 +293,11 @@ async function createProject(event) {
   await fetchProjects();
   state.selectedProjectId = project.id;
   renderProjects();
-  await hydrateSelectedProject();
-}
-
-async function createTopic(event) {
-  event.preventDefault();
-
-  if (!state.selectedProjectId) {
-    alert("Create or select a project first.");
-    return;
-  }
-
-  const name = els.topicName.value.trim();
-  if (!name) {
-    return;
-  }
-
-  const { topic } = await api(`/api/projects/${state.selectedProjectId}/topics`, {
-    method: "POST",
-    body: JSON.stringify({ name }),
-  });
-
-  els.topicName.value = "";
-  await fetchProjects();
-  renderProjects();
-  await hydrateSelectedProject();
-  els.cardTopicSelect.value = String(topic.id);
+  await loadSelectedProject();
 }
 
 async function addCard(event) {
   event.preventDefault();
-
   if (!state.selectedProjectId) {
     alert("Create or select a project first.");
     return;
@@ -354,19 +305,13 @@ async function addCard(event) {
 
   const question = els.manualQuestion.value.trim();
   const definition = els.manualDefinition.value.trim();
-  const topicId = els.cardTopicSelect.value;
-
   if (!question || !definition) {
     return;
   }
 
   await api(`/api/projects/${state.selectedProjectId}/cards`, {
     method: "POST",
-    body: JSON.stringify({
-      question,
-      definition,
-      topic_id: topicId || null,
-    }),
+    body: JSON.stringify({ question, definition }),
   });
 
   els.manualQuestion.value = "";
@@ -375,17 +320,196 @@ async function addCard(event) {
 
   await fetchProjects();
   renderProjects();
-  await hydrateSelectedProject();
-  setStatusFilter("all");
-  applyFilters();
+  await loadSelectedProject();
 }
 
-async function rateCurrentCard(status) {
-  if (!state.filteredCards.length) {
+function resetStudySession() {
+  state.study = emptyStudyState();
+  els.flipCard.classList.remove("flipped");
+  els.studySummary.classList.add("hidden");
+  els.summaryTitle.textContent = "Session summary";
+  els.summaryBody.innerHTML = "";
+}
+
+function getStudyCard() {
+  const currentId = state.study.queue[state.study.index];
+  return state.cards.find((card) => card.id === currentId) || null;
+}
+
+function renderStudyCard() {
+  const card = getStudyCard();
+  if (!card) {
     return;
   }
 
-  const card = state.filteredCards[state.currentCardIndex];
+  els.studyQuestion.textContent = card.question;
+  els.studyAnswer.textContent = card.definition || card.answer;
+  els.flipCard.classList.remove("flipped");
+}
+
+function summaryCounts() {
+  const statuses = Object.values(state.study.results);
+  const know = statuses.filter((value) => value === "know").length;
+  const didntKnow = statuses.filter((value) => value === "didnt_know").length;
+  const reviewed = statuses.length;
+  const mastery = reviewed ? Math.round((know / reviewed) * 100) : 0;
+  return { reviewed, know, didntKnow, mastery };
+}
+
+function showStudySummary(title) {
+  const totals = summaryCounts();
+  const totalCards = state.study.queue.length;
+  const remaining = Math.max(totalCards - totals.reviewed, 0);
+
+  els.summaryTitle.textContent = title;
+  els.summaryBody.innerHTML = `
+    <p><strong>Reviewed:</strong> ${totals.reviewed} / ${totalCards}</p>
+    <p><strong>Know:</strong> ${totals.know}</p>
+    <p><strong>Didn't know:</strong> ${totals.didntKnow}</p>
+    <p><strong>Mastery:</strong> ${totals.mastery}%</p>
+    <p><strong>Remaining:</strong> ${remaining}</p>
+  `;
+  els.studySummary.classList.remove("hidden");
+}
+
+function renderStudy() {
+  const hasProject = Boolean(state.selectedProjectId);
+  const hasCards = state.cards.length > 0;
+  const hasQueue = state.study.queue.length > 0;
+
+  els.startSession.classList.toggle(
+    "hidden",
+    !hasProject || !hasCards || state.study.active || state.study.paused
+  );
+  els.startSession.textContent = hasQueue ? "Restart session" : "Start session";
+  els.pauseSession.classList.toggle("hidden", !state.study.active);
+  els.resumeSession.classList.toggle("hidden", !(state.study.paused && hasQueue));
+  els.endSession.classList.toggle("hidden", !(hasQueue && (state.study.active || state.study.paused)));
+  const canRate = state.study.active && hasQueue;
+  els.markKnow.disabled = !canRate;
+  els.markDidntKnow.disabled = !canRate;
+  els.flipButton.disabled = !hasQueue;
+  els.prevStudy.disabled = !hasQueue;
+  els.nextStudy.disabled = !hasQueue;
+
+  if (!hasProject) {
+    els.studyEmpty.classList.remove("hidden");
+    els.studyEmpty.textContent = "Select a project to begin studying.";
+    els.studyStage.classList.add("hidden");
+    els.studyProgress.textContent = "";
+    return;
+  }
+
+  if (!hasCards) {
+    els.studyEmpty.classList.remove("hidden");
+    els.studyEmpty.textContent = "Add cards in Insert mode to start a study session.";
+    els.studyStage.classList.add("hidden");
+    els.studyProgress.textContent = "";
+    return;
+  }
+
+  if (!hasQueue) {
+    els.studyEmpty.classList.remove("hidden");
+    els.studyEmpty.textContent = "Press Start session to begin.";
+    els.studyStage.classList.add("hidden");
+    els.studyProgress.textContent = "";
+    return;
+  }
+
+  els.studyEmpty.classList.add("hidden");
+  els.studyStage.classList.remove("hidden");
+
+  const reviewed = Object.keys(state.study.results).length;
+  els.studyProgress.textContent = `Card ${state.study.index + 1}/${state.study.queue.length} | Reviewed ${reviewed}`;
+
+  renderStudyCard();
+}
+
+function startStudySession() {
+  if (!state.cards.length) {
+    alert("This project has no flashcards yet.");
+    return;
+  }
+
+  state.study = {
+    active: true,
+    paused: false,
+    queue: state.cards.map((card) => card.id),
+    index: 0,
+    results: {},
+    startedAt: Date.now(),
+  };
+
+  els.studySummary.classList.add("hidden");
+  renderStudy();
+}
+
+function pauseStudySession() {
+  if (!state.study.active) {
+    return;
+  }
+
+  state.study.active = false;
+  state.study.paused = true;
+  renderStudy();
+  showStudySummary("Session paused");
+}
+
+function resumeStudySession() {
+  if (!state.study.paused || !state.study.queue.length) {
+    return;
+  }
+
+  state.study.active = true;
+  state.study.paused = false;
+  els.studySummary.classList.add("hidden");
+  renderStudy();
+}
+
+function endStudySession() {
+  if (!state.study.queue.length) {
+    return;
+  }
+
+  state.study.active = false;
+  state.study.paused = false;
+  renderStudy();
+  showStudySummary("Session ended");
+}
+
+function finishStudySession() {
+  state.study.active = false;
+  state.study.paused = false;
+  renderStudy();
+  showStudySummary("Session complete");
+}
+
+function moveStudy(step) {
+  if (!state.study.queue.length) {
+    return;
+  }
+
+  const total = state.study.queue.length;
+  state.study.index = (state.study.index + step + total) % total;
+  renderStudy();
+}
+
+function flipStudyCard() {
+  if (!state.study.queue.length) {
+    return;
+  }
+  els.flipCard.classList.toggle("flipped");
+}
+
+async function markCurrentCard(status) {
+  if (!state.study.active) {
+    return;
+  }
+
+  const card = getStudyCard();
+  if (!card) {
+    return;
+  }
 
   const { card: updated } = await api(`/api/cards/${card.id}/status`, {
     method: "PATCH",
@@ -393,75 +517,63 @@ async function rateCurrentCard(status) {
   });
 
   state.cards = state.cards.map((item) => (item.id === updated.id ? updated : item));
-  applyFilters();
-  await fetchProjects();
-  renderProjects();
-}
+  state.study.results[card.id] = status;
+  state.projectStats = computeStats(state.cards);
+  renderStats();
+  renderCardsList();
 
-function moveCard(step) {
-  if (!state.filteredCards.length) {
+  if (state.study.index >= state.study.queue.length - 1) {
+    finishStudySession();
     return;
   }
 
-  const total = state.filteredCards.length;
-  state.currentCardIndex = (state.currentCardIndex + step + total) % total;
-  renderCurrentCard();
+  state.study.index += 1;
+  els.flipCard.classList.remove("flipped");
+  renderStudy();
 }
 
 function wireEvents() {
-  els.fontMode.addEventListener("change", () => {
-    applyFontMode(els.fontMode.value);
-  });
-
+  els.fontMode.addEventListener("change", () => applyFontMode(els.fontMode.value));
   els.themeToggle.addEventListener("click", toggleTheme);
-
   els.refreshProjects.addEventListener("click", () => {
     loadAppData().catch((error) => alert(error.message));
+  });
+  els.projectPanelToggle.addEventListener("click", toggleProjectPanel);
+
+  els.modeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      setActiveMode(button.dataset.mode);
+    });
   });
 
   els.newProjectForm.addEventListener("submit", (event) => {
     createProject(event).catch((error) => alert(error.message));
   });
 
-  els.newTopicForm.addEventListener("submit", (event) => {
-    createTopic(event).catch((error) => alert(error.message));
-  });
-
   els.manualCardForm.addEventListener("submit", (event) => {
     addCard(event).catch((error) => alert(error.message));
   });
 
-  els.studyTopicFilter.addEventListener("change", () => {
-    state.topicFilter = els.studyTopicFilter.value;
-    applyFilters();
+  els.startSession.addEventListener("click", startStudySession);
+  els.pauseSession.addEventListener("click", pauseStudySession);
+  els.resumeSession.addEventListener("click", resumeStudySession);
+  els.endSession.addEventListener("click", endStudySession);
+  els.flipButton.addEventListener("click", flipStudyCard);
+  els.prevStudy.addEventListener("click", () => moveStudy(-1));
+  els.nextStudy.addEventListener("click", () => moveStudy(1));
+  els.markDidntKnow.addEventListener("click", () => {
+    markCurrentCard("didnt_know").catch((error) => alert(error.message));
   });
-
-  els.filters.forEach((button) => {
-    button.addEventListener("click", () => {
-      setStatusFilter(button.dataset.filter);
-      applyFilters();
-    });
-  });
-
-  els.showDefinition.addEventListener("click", () => {
-    els.definitionBlock.classList.remove("hidden");
-  });
-
-  els.prevCard.addEventListener("click", () => moveCard(-1));
-  els.nextCard.addEventListener("click", () => moveCard(1));
-
-  els.ratingButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      rateCurrentCard(button.dataset.status).catch((error) => alert(error.message));
-    });
+  els.markKnow.addEventListener("click", () => {
+    markCurrentCard("know").catch((error) => alert(error.message));
   });
 }
 
 async function boot() {
   applyTheme(preferredTheme());
   applyFontMode(preferredFontMode());
-  setStatusFilter("all");
-  state.topicFilter = "all";
+  applyProjectPanelVisibility(true);
+  setActiveMode("insert");
   wireEvents();
   await loadAppData();
 }
