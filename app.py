@@ -91,6 +91,51 @@ def create_app() -> Flask:
 
         return jsonify({"project": dict(project)}), 201
 
+    @app.patch("/api/projects/<int:project_id>")
+    def update_project(project_id: int) -> Any:
+        payload = request.get_json(silent=True) or {}
+        updates: list[str] = []
+        values: list[str] = []
+
+        if "name" in payload:
+            name = str(payload.get("name", "")).strip()
+            if not name:
+                return jsonify({"error": "Project name is required."}), 400
+            updates.append("name = ?")
+            values.append(name)
+
+        if "description" in payload:
+            description = str(payload.get("description", "")).strip()
+            updates.append("description = ?")
+            values.append(description)
+
+        if not updates:
+            return jsonify({"error": "No project fields provided."}), 400
+
+        with get_conn() as conn:
+            existing = conn.execute(
+                "SELECT id FROM projects WHERE id = ?",
+                (project_id,),
+            ).fetchone()
+            if existing is None:
+                return jsonify({"error": "Project not found."}), 404
+
+            conn.execute(
+                f"UPDATE projects SET {', '.join(updates)} WHERE id = ?",
+                (*values, project_id),
+            )
+            conn.commit()
+
+            project = conn.execute(
+                "SELECT id, name, description, created_at FROM projects WHERE id = ?",
+                (project_id,),
+            ).fetchone()
+
+        if project is None:
+            return jsonify({"error": "Project not found."}), 404
+
+        return jsonify({"project": dict(project)})
+
     @app.get("/api/projects/<int:project_id>")
     def get_project(project_id: int) -> Any:
         with get_conn() as conn:

@@ -4,11 +4,11 @@
   --font-body: var(--font-sans);
   --font-display: var(--font-serif);
 
-  --chestnut: #480903;
-  --olive: #937a24;
-  --desert-tan: #e5d1a4;
-  --caramel: #cf793a;
-  --copper: #b64b12;
+  --chestnut: #5d2736;
+  --olive: #8a7861;
+  --desert-tan: #f1e6de;
+  --caramel: #c48c7d;
+  --copper: #a76660;
 }
 
 :root[data-font-mode="clean"] {
@@ -17,42 +17,42 @@
 }
 
 :root[data-theme="light"] {
-  --bg: #e2cf9f;
-  --panel: #f0dfbc;
-  --panel-strong: #f7ead0;
-  --text: #2f170f;
-  --muted: #6f4f37;
-  --line: #caa16a;
+  --bg: #fbf3ef;
+  --panel: #fff8f4;
+  --panel-strong: #fffdfb;
+  --text: #3a2530;
+  --muted: #7d5f6b;
+  --line: #e0bcc7;
   --primary: var(--chestnut);
-  --primary-strong: #63170e;
+  --primary-strong: #743447;
   --secondary: var(--copper);
-  --secondary-strong: #953f10;
+  --secondary-strong: #8f5752;
   --good: var(--olive);
-  --danger: #6a120a;
-  --status-know-bg: #e1dcaf;
-  --status-know-text: #4f4515;
-  --status-didnt-bg: #ead0bb;
-  --status-didnt-text: #5d170f;
-  --shadow: 0 10px 24px rgba(72, 9, 3, 0.12);
+  --danger: #934053;
+  --status-know-bg: #f0e7de;
+  --status-know-text: #5f4e3f;
+  --status-didnt-bg: #f7e6eb;
+  --status-didnt-text: #6d2f42;
+  --shadow: 0 10px 24px rgba(95, 39, 54, 0.08);
 }
 
 :root[data-theme="dark"] {
-  --bg: #2f2018;
-  --panel: #4b2e1f;
-  --panel-strong: #5d3824;
-  --text: #f5e7cb;
-  --muted: #debe90;
-  --line: #8f6338;
-  --primary: var(--caramel);
-  --primary-strong: #b7662f;
-  --secondary: var(--olive);
-  --secondary-strong: #76621d;
-  --good: #a19239;
-  --danger: #b75f3f;
-  --status-know-bg: #6f652a;
-  --status-know-text: #f2edc5;
-  --status-didnt-bg: #7b3d2a;
-  --status-didnt-text: #f4d7c7;
+  --bg: #4a353c;
+  --panel: #5d434d;
+  --panel-strong: #6d4f5a;
+  --text: #fff1ef;
+  --muted: #e8cdd3;
+  --line: #b58a96;
+  --primary: #df97aa;
+  --primary-strong: #c8748e;
+  --secondary: #c29086;
+  --secondary-strong: #a5756d;
+  --good: #b39b7e;
+  --danger: #e38b9f;
+  --status-know-bg: #816a5e;
+  --status-know-text: #f8ece0;
+  --status-didnt-bg: #8c5d6b;
+  --status-didnt-text: #ffe8ee;
   --shadow: 0 10px 24px rgba(0, 0, 0, 0.32);
 }
 
@@ -94,6 +94,22 @@ h1 {
 h2 {
   font-size: clamp(1.35rem, 3.1vw, 1.75rem);
   font-weight: 600;
+}
+
+.project-title-input {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px 10px;
+  background: var(--panel-strong);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 3.1vw, 1.75rem);
+  font-weight: 600;
+  width: min(100%, 680px);
+}
+
+#active-project-title.editable {
+  cursor: text;
 }
 
 h3 {

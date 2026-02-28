@@ -7,6 +7,8 @@ const state = {
   fontMode: "editorial",
   activeMode: "insert",
   projectsPanelOpen: true,
+  projectTitleEditing: false,
+  projectTitleSaving: false,
   editingCardId: null,
   editingOriginalImageUrl: null,
   previewBlobUrl: null,
@@ -20,6 +22,8 @@ function emptyStudyState() {
     queue: [],
     index: 0,
     results: {},
+    attempts: 0,
+    initialTotal: 0,
     startedAt: null,
   };
 }
@@ -35,6 +39,7 @@ const els = {
   projectList: document.getElementById("project-list"),
   projectItemTemplate: document.getElementById("project-item-template"),
   activeProjectTitle: document.getElementById("active-project-title"),
+  activeProjectTitleInput: document.getElementById("active-project-title-input"),
   stats: document.getElementById("stats"),
   modeButtons: [...document.querySelectorAll(".mode-btn")],
   insertView: document.getElementById("insert-view"),
@@ -205,6 +210,95 @@ function renderProjects() {
   });
 }
 
+function getSelectedProject() {
+  return state.projects.find((project) => project.id === state.selectedProjectId) || null;
+}
+
+function closeProjectTitleEditor() {
+  state.projectTitleEditing = false;
+  els.activeProjectTitleInput.classList.add("hidden");
+  els.activeProjectTitle.classList.remove("hidden");
+}
+
+function renderActiveProjectTitle(name = null) {
+  const projectName = name ?? getSelectedProject()?.name ?? null;
+  els.activeProjectTitle.textContent = projectName || "Select a project";
+
+  const canEdit = Boolean(state.selectedProjectId && projectName);
+  els.activeProjectTitle.classList.toggle("editable", canEdit);
+  els.activeProjectTitle.setAttribute("tabindex", canEdit ? "0" : "-1");
+
+  if (!canEdit && state.projectTitleEditing) {
+    closeProjectTitleEditor();
+  }
+}
+
+function beginProjectTitleEdit() {
+  if (!state.selectedProjectId || state.projectTitleEditing || state.projectTitleSaving) {
+    return;
+  }
+
+  const project = getSelectedProject();
+  if (!project) {
+    return;
+  }
+
+  state.projectTitleEditing = true;
+  els.activeProjectTitleInput.value = project.name;
+  els.activeProjectTitle.classList.add("hidden");
+  els.activeProjectTitleInput.classList.remove("hidden");
+  els.activeProjectTitleInput.focus();
+  els.activeProjectTitleInput.select();
+}
+
+async function commitProjectTitleEdit() {
+  if (!state.projectTitleEditing || state.projectTitleSaving) {
+    return;
+  }
+
+  const project = getSelectedProject();
+  if (!project) {
+    closeProjectTitleEditor();
+    return;
+  }
+
+  const nextName = els.activeProjectTitleInput.value.trim();
+  if (!nextName || nextName === project.name) {
+    closeProjectTitleEditor();
+    return;
+  }
+
+  state.projectTitleSaving = true;
+  try {
+    const { project: updated } = await api(`/api/projects/${project.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name: nextName }),
+    });
+
+    state.projects = state.projects.map((item) =>
+      item.id === updated.id
+        ? { ...item, name: updated.name, description: updated.description }
+        : item
+    );
+    renderProjects();
+    renderActiveProjectTitle(updated.name);
+  } catch (error) {
+    alert(error.message);
+    renderActiveProjectTitle(project.name);
+  } finally {
+    state.projectTitleSaving = false;
+    closeProjectTitleEditor();
+  }
+}
+
+function cancelProjectTitleEdit() {
+  if (!state.projectTitleEditing) {
+    return;
+  }
+  renderActiveProjectTitle();
+  closeProjectTitleEditor();
+}
+
 function getCardById(cardId) {
   return state.cards.find((card) => card.id === cardId) || null;
 }
@@ -341,7 +435,7 @@ function renderCardsList() {
 }
 
 function clearProjectViews() {
-  els.activeProjectTitle.textContent = "Select a project";
+  renderActiveProjectTitle(null);
   state.cards = [];
   state.projectStats = null;
   renderStats();
@@ -376,7 +470,17 @@ async function loadSelectedProject() {
     api(`/api/projects/${state.selectedProjectId}/cards?status=all`),
   ]);
 
-  els.activeProjectTitle.textContent = projectResponse.project.name;
+  state.projects = state.projects.map((project) =>
+    project.id === projectResponse.project.id
+      ? {
+          ...project,
+          name: projectResponse.project.name,
+          description: projectResponse.project.description,
+        }
+      : project
+  );
+  renderProjects();
+  renderActiveProjectTitle(projectResponse.project.name);
   state.cards = cardsResponse.cards;
   state.projectStats = projectResponse.stats || computeStats(state.cards);
   renderStats();
@@ -521,24 +625,33 @@ function renderStudyCard() {
 }
 
 function summaryCounts() {
-  const statuses = Object.values(state.study.results);
-  const know = statuses.filter((value) => value === "know").length;
-  const didntKnow = statuses.filter((value) => value === "didnt_know").length;
-  const reviewed = statuses.length;
-  const mastery = reviewed ? Math.round((know / reviewed) * 100) : 0;
-  return { reviewed, know, didntKnow, mastery };
+  const entries = Object.values(state.study.results);
+  const mastered = entries.filter((entry) => entry.know).length;
+  const neededRepeat = entries.filter((entry) => entry.didntCount > 0).length;
+  const attempts = entries.reduce((sum, entry) => sum + entry.attempts, 0);
+  const didntKnowMarks = entries.reduce((sum, entry) => sum + entry.didntCount, 0);
+  const total = state.study.initialTotal || state.cards.length;
+  const mastery = total ? Math.round((mastered / total) * 100) : 0;
+  return {
+    total,
+    mastered,
+    neededRepeat,
+    attempts,
+    didntKnowMarks,
+    mastery,
+  };
 }
 
 function showStudySummary(title) {
   const totals = summaryCounts();
-  const totalCards = state.study.queue.length;
-  const remaining = Math.max(totalCards - totals.reviewed, 0);
+  const remaining = state.study.queue.length;
 
   els.summaryTitle.textContent = title;
   els.summaryBody.innerHTML = `
-    <p><strong>Reviewed:</strong> ${totals.reviewed} / ${totalCards}</p>
-    <p><strong>Know:</strong> ${totals.know}</p>
-    <p><strong>Didn't know:</strong> ${totals.didntKnow}</p>
+    <p><strong>Mastered:</strong> ${totals.mastered} / ${totals.total}</p>
+    <p><strong>Cards needing repeat:</strong> ${totals.neededRepeat}</p>
+    <p><strong>Didn't know marks:</strong> ${totals.didntKnowMarks}</p>
+    <p><strong>Total attempts:</strong> ${totals.attempts}</p>
     <p><strong>Mastery:</strong> ${totals.mastery}%</p>
     <p><strong>Remaining:</strong> ${remaining}</p>
   `;
@@ -592,8 +705,8 @@ function renderStudy() {
   els.studyEmpty.classList.add("hidden");
   els.studyStage.classList.remove("hidden");
 
-  const reviewed = Object.keys(state.study.results).length;
-  els.studyProgress.textContent = `Card ${state.study.index + 1}/${state.study.queue.length} | Reviewed ${reviewed}`;
+  const totals = summaryCounts();
+  els.studyProgress.textContent = `Remaining ${state.study.queue.length} | Mastered ${totals.mastered}/${totals.total} | Attempts ${totals.attempts}`;
 
   renderStudyCard();
 }
@@ -610,6 +723,8 @@ function startStudySession() {
     queue: state.cards.map((card) => card.id),
     index: 0,
     results: {},
+    attempts: 0,
+    initialTotal: state.cards.length,
     startedAt: Date.now(),
   };
 
@@ -690,17 +805,37 @@ async function markCurrentCard(status) {
   });
 
   state.cards = state.cards.map((item) => (item.id === updated.id ? updated : item));
-  state.study.results[card.id] = status;
+  const previous = state.study.results[card.id] || { attempts: 0, didntCount: 0, know: false };
+  state.study.results[card.id] = {
+    attempts: previous.attempts + 1,
+    didntCount: previous.didntCount + (status === "didnt_know" ? 1 : 0),
+    know: status === "know" ? true : previous.know,
+  };
+  state.study.attempts += 1;
   state.projectStats = computeStats(state.cards);
   renderStats();
   renderCardsList();
 
-  if (state.study.index >= state.study.queue.length - 1) {
-    finishStudySession();
-    return;
-  }
+  if (status === "know") {
+    state.study.queue.splice(state.study.index, 1);
 
-  state.study.index += 1;
+    if (!state.study.queue.length) {
+      finishStudySession();
+      return;
+    }
+
+    if (state.study.index >= state.study.queue.length) {
+      state.study.index = 0;
+    }
+  } else if (state.study.queue.length > 1) {
+    const isLast = state.study.index === state.study.queue.length - 1;
+    const [currentId] = state.study.queue.splice(state.study.index, 1);
+    state.study.queue.push(currentId);
+    if (isLast) {
+      state.study.index = 0;
+    }
+  }
+  state.study.index = Math.max(0, state.study.index);
   els.flipCard.classList.remove("flipped");
   renderStudy();
 }
@@ -721,6 +856,28 @@ function wireEvents() {
 
   els.newProjectForm.addEventListener("submit", (event) => {
     createProject(event).catch((error) => alert(error.message));
+  });
+
+  els.activeProjectTitle.addEventListener("click", beginProjectTitleEdit);
+  els.activeProjectTitle.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      beginProjectTitleEdit();
+    }
+  });
+  els.activeProjectTitleInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      commitProjectTitleEdit().catch((error) => alert(error.message));
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      cancelProjectTitleEdit();
+    }
+  });
+  els.activeProjectTitleInput.addEventListener("blur", () => {
+    commitProjectTitleEdit().catch((error) => alert(error.message));
   });
 
   els.manualCardForm.addEventListener("submit", (event) => {
