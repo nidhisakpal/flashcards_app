@@ -508,11 +508,18 @@ button:disabled {
 
 .flip-card {
   perspective: 1400px;
+  cursor: pointer;
+}
+
+.flip-card:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+  border-radius: 20px;
 }
 
 .flip-card-inner {
   position: relative;
-  min-height: 380px;
+  min-height: clamp(520px, 68vh, 760px);
   transition: transform 0.55s ease;
   transform-style: preserve-3d;
 }
@@ -531,6 +538,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow: hidden;
   backface-visibility: hidden;
 }
 
@@ -548,12 +556,24 @@ button:disabled {
 .face-text {
   font-size: clamp(1.2rem, 2.8vw, 1.9rem);
   line-height: 1.45;
-  margin: auto 0;
+  margin: 0;
+  flex: 1;
+  overflow-y: auto;
   text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+#study-question,
+#study-answer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .study-image-wrap {
   margin-top: 8px;
+  flex-shrink: 0;
 }
 
 .study-image-wrap img {
@@ -575,7 +595,10 @@ button:disabled {
 .rating {
   color: #ffffff;
   flex: 1;
-  min-width: 140px;
+  min-width: 200px;
+  min-height: 64px;
+  padding: 14px 20px;
+  font-size: 1.25rem;
   font-weight: 700;
 }
 
@@ -639,6 +662,10 @@ button:disabled {
 
   .list-side {
     justify-items: start;
+  }
+
+  .flip-card-inner {
+    min-height: clamp(460px, 62vh, 640px);
   }
 
   .face-text {

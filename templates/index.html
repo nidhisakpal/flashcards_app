@@ -121,7 +121,14 @@
             <div id="study-empty" class="empty-message">Start a study session to review your flashcards.</div>
 
             <div id="study-stage" class="study-stage hidden">
-              <div id="flip-card" class="flip-card" aria-live="polite">
+              <div
+                id="flip-card"
+                class="flip-card"
+                aria-live="polite"
+                role="button"
+                tabindex="0"
+                aria-label="Flip flashcard"
+              >
                 <div class="flip-card-inner">
                   <article class="flip-face front">
                     <p class="face-label">Question</p>
@@ -138,7 +145,6 @@
               </div>
 
               <div class="card-actions">
-                <button id="flip-button" class="secondary" type="button">Flip card</button>
                 <button id="prev-study" class="ghost" type="button">Prev</button>
                 <button id="next-study" class="ghost" type="button">Next</button>
               </div>

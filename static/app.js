@@ -69,7 +69,6 @@ const els = {
   studyAnswer: document.getElementById("study-answer"),
   studyImageWrap: document.getElementById("study-image-wrap"),
   studyImage: document.getElementById("study-image"),
-  flipButton: document.getElementById("flip-button"),
   prevStudy: document.getElementById("prev-study"),
   nextStudy: document.getElementById("next-study"),
   markDidntKnow: document.getElementById("mark-didnt-know"),
@@ -674,7 +673,6 @@ function renderStudy() {
   const canRate = state.study.active && hasQueue;
   els.markKnow.disabled = !canRate;
   els.markDidntKnow.disabled = !canRate;
-  els.flipButton.disabled = !hasQueue;
   els.prevStudy.disabled = !hasQueue;
   els.nextStudy.disabled = !hasQueue;
 
@@ -895,7 +893,15 @@ function wireEvents() {
   els.pauseSession.addEventListener("click", pauseStudySession);
   els.resumeSession.addEventListener("click", resumeStudySession);
   els.endSession.addEventListener("click", endStudySession);
-  els.flipButton.addEventListener("click", flipStudyCard);
+  els.flipCard.addEventListener("click", () => {
+    flipStudyCard();
+  });
+  els.flipCard.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      flipStudyCard();
+    }
+  });
   els.prevStudy.addEventListener("click", () => moveStudy(-1));
   els.nextStudy.addEventListener("click", () => moveStudy(1));
   els.markDidntKnow.addEventListener("click", () => {
